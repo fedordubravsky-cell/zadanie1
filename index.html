@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="sk" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake: Moderná Klasika</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            light: '#d1fae5',
+                            DEFAULT: '#10b981',
+                            dark: '#047857',
+                        }
+                    },
+                    animation: {
+                        'float': 'float 6s ease-in-out infinite',
+                        'float-delayed': 'float 6s ease-in-out 3s infinite',
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-20px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Utilities */
+        .text-gradient {
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-image: linear-gradient(to right, #10b981, #06b6d4);
+        }
+        .text-gradient-secondary {
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-image: linear-gradient(to right, #8b5cf6, #ec4899);
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+        }
+
+        .bg-grid-pattern {
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        /* Hide scrollbar for clean look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s ease-out;
+        }
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased overflow-x-hidden relative">
+
+    <!-- Background Elements -->
+    <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div class="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-emerald-200/30 rounded-full blur-3xl animate-pulse-slow"></div>
+        <div class="absolute bottom-[-10%] left-[-5%] w-[600px] h-[600px] bg-cyan-200/30 rounded-full blur-3xl animate-pulse-slow" style="animation-delay: 1s;"></div>
+        <div class="absolute top-[40%] left-[20%] w-[300px] h-[300px] bg-purple-200/30 rounded-full blur-3xl animate-pulse-slow" style="animation-delay: 2s;"></div>
+        <div class="absolute inset-0 bg-grid-pattern opacity-[0.4] z-[-1]"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="fixed w-full z-50 transition-all duration-300" id="navbar">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-20">
+                <div class="flex-shrink-0 flex items-center gap-2 cursor-pointer">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-white font-bold shadow-lg">S</div>
+                    <span class="font-display font-bold text-xl tracking-tight text-slate-900">Snake<span class="text-emerald-500">.io</span></span>
+                </div>
+                <div class="hidden md:flex space-x-8 items-center">
+                    <a href="#home" class="text-slate-600 hover:text-emerald-600 font-medium transition-colors">Domov</a>
+                    <a href="#features" class="text-slate-600 hover:text-emerald-600 font-medium transition-colors">Funkcie</a>
+                    <a href="#about" class="text-slate-600 hover:text-emerald-600 font-medium transition-colors">O Hre</a>
+                    <button class="px-6 py-2 rounded-full bg-slate-900 text-white font-medium hover:bg-slate-800 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                        Prihlásiť sa
+                    </button>
+                </div>
+                <!-- Mobile menu button -->
+                <div class="md:hidden flex items-center">
+                    <button class="text-slate-600 hover:text-slate-900 focus:outline-none">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="home" class="relative z-10 pt-32 pb-20 lg:pt-48 lg:pb-32">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <div class="inline-block mb-6 px-4 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm font-semibold tracking-wide uppercase reveal">
+                Nová generácia klasiky
+            </div>
+            <h1 class="text-5xl md:text-7xl lg:text-8xl font-display font-bold tracking-tight mb-8 reveal" style="transition-delay: 100ms;">
+                Hra, ktorú <br>
+                <span class="text-gradient">všetci milujeme.</span>
+            </h1>
+            <p class="mt-4 max-w-2xl mx-auto text-xl text-slate-600 mb-10 reveal" style="transition-delay: 200ms;">
+                Zaži nostalgiu v modernom prevedení. Plynulé ovládanie, krásne animácie a globálne rebríčky. Si pripravený rásť?
+            </p>
+            <div class="flex flex-col sm:flex-row justify-center gap-4 reveal" style="transition-delay: 300ms;">
+                <button class="group relative px-8 py-4 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold text-lg shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all duration-300 transform hover:-translate-y-1 overflow-hidden">
+                    <span class="relative z-10 flex items-center gap-2">
+                        Hrať Hru
+                        <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                    </span>
+                    <div class="absolute inset-0 bg-gradient-to-r from-cyan-500 to-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                </button>
+                <button class="px-8 py-4 rounded-full bg-white text-slate-700 font-bold text-lg border border-slate-200 hover:border-emerald-200 hover:bg-emerald-50 transition-all duration-300 shadow-sm hover:shadow-md">
+                    Ako to funguje?
+                </button>
+            </div>
+
+            <!-- Abstract Game Visual -->
+            <div class="mt-20 relative max-w-4xl mx-auto reveal" style="transition-delay: 400ms;">
+                <div class="absolute inset-0 bg-gradient-to-b from-emerald-500/5 to-transparent rounded-3xl transform rotate-3 scale-105"></div>
+                <div class="glass-card rounded-2xl p-4 shadow-2xl relative overflow-hidden aspect-[16/9] flex items-center justify-center group">
+                    <!-- Grid Background inside card -->
+                    <div class="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+                    
+                    <!-- Snake Head -->
+                    <div class="absolute w-12 h-12 bg-emerald-500 rounded-xl shadow-lg z-20 animate-float flex items-center justify-center">
+                        <div class="flex gap-2">
+                            <div class="w-2 h-2 bg-white rounded-full"></div>
+                            <div class="w-2 h-2 bg-white rounded-full"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Snake Body Segments -->
+                    <div class="absolute w-12 h-12 bg-emerald-400/80 rounded-xl shadow-sm z-10 animate-float-delayed" style="transform: translate(-40px, 10px);"></div>
+                    <div class="absolute w-12 h-12 bg-emerald-300/60 rounded-xl shadow-sm z-10 animate-float" style="animation-delay: 0.2s; transform: translate(-80px, 20px);"></div>
+                    
+                    <!-- Food -->
+                    <div class="absolute w-8 h-8 bg-rose-500 rounded-full shadow-lg shadow-rose-500/40 animate-pulse" style="top: 30%; right: 25%;"></div>
+
+                    <div class="absolute bottom-10 left-0 right-0 text-center">
+                        <span class="text-slate-400 text-sm font-medium tracking-widest uppercase">Ukážka Hry</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-24 relative z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16 reveal">
+                <h2 class="text-3xl md:text-4xl font-display font-bold text-slate-900 mb-4">Prečo hrať práve <span class="text-gradient-secondary">teraz?</span></h2>
+                <p class="text-slate-600 max-w-2xl mx-auto">
+                    Snake nie je len o zbieraní bodiek. Je to o rýchlosti, stratégii a prekonávaní samého seba.
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Feature 1 -->
+                <div class="glass-card p-8 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-2 reveal" style="transition-delay: 100ms;">
+                    <div class="w-14 h-14 bg-emerald-100 rounded-xl flex items-center justify-center mb-6 text-emerald-600">
+                        <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900 mb-3">Blesková Rýchlosť</h3>
+                    <p class="text-slate-600 leading-relaxed">
+                        Optimalizovaný kód pre plynulý zážitok bez sekania. Reaguje okamžite na každý tvoj pohyb.
+                    </p>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="glass-card p-8 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-2 reveal" style="transition-delay: 200ms;">
+                    <div class="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center mb-6 text-purple-600">
+                        <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900 mb-3">Moderný Dizajn</h3>
+                    <p class="text-slate-600 leading-relaxed">
+                        Zabudni na pixely z roku 1997. Uži si čisté línie, jemné tiene a príjemné farebné palety.
+                    </p>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="glass-card p-8 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-2 reveal" style="transition-delay: 300ms;">
+                    <div class="w-14 h-14 bg-rose-100 rounded-xl flex items-center justify-center mb-6 text-rose-600">
+                        <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900 mb-3">Svetové Rebríčky</h3>
+                    <p class="text-slate-600 leading-relaxed">
+                        Súťaž s hráčmi z celého sveta. Dokážeš sa dostať do TOP 10 a získať titul Snake Master?
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How to Play Section -->
+    <section id="about" class="py-24 bg-white relative z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col lg:flex-row items-center gap-16">
+                <div class="lg:w-1/2 reveal">
+                    <h2 class="text-3xl md:text-4xl font-display font-bold text-slate-900 mb-6">
+                        Jednoduché pravidlá, <br>
+                        <span class="text-emerald-500">nekonečná výzva.</span>
+                    </h2>
+                    <div class="space-y-8">
+                        <div class="flex gap-4">
+                            <div class="flex-shrink-0 w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700">1</div>
+                            <div>
+                                <h4 class="text-lg font-bold text-slate-900">Ovládaj Hada</h4>
+                                <p class="text-slate-600">Použi šípky na klávesnici alebo gestá na mobile pre zmenu smeru.</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-4">
+                            <div class="flex-shrink-0 w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700">2</div>
+                            <div>
+                                <h4 class="text-lg font-bold text-slate-900">Zbieraj Jedlo</h4>
+                                <p class="text-slate-600">Každé jedlo ti pridá body a predĺži tvojho hada. Pozor na červené bonusy!</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-4">
+                            <div class="flex-shrink-0 w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700">3</div>
+                            <div>
+                                <h4 class="text-lg font-bold text-slate-900">Nenaraz</h4>
+                                <p class="text-slate-600">Vyhni sa stenám a vlastnému chvostu. Jedna chyba a hra končí.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="lg:w-1/2 reveal" style="transition-delay: 200ms;">
+                    <div class="relative">
+                        <div class="absolute inset-0 bg-gradient-to-tr from-emerald-500 to-cyan-500 rounded-2xl transform rotate-6 opacity-20"></div>
+                        <div class="bg-slate-900 rounded-2xl p-2 shadow-2xl relative">
+                            <!-- Keyboard Visual -->
+                            <div class="bg-slate-800 rounded-xl p-8 flex flex-col items-center gap-4">
+                                <div class="w-16 h-16 rounded-lg bg-slate-700 border-b-4 border-slate-950 flex items-center justify-center text-slate-400 font-bold shadow-lg">
+                                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+                                </div>
+                                <div class="flex gap-4">
+                                    <div class="w-16 h-16 rounded-lg bg-slate-700 border-b-4 border-slate-950 flex items-center justify-center text-slate-400 font-bold shadow-lg">
+                                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                                    </div>
+                                    <div class="w-16 h-16 rounded-lg bg-slate-700 border-b-4 border-slate-950 flex items-center justify-center text-slate-400 font-bold shadow-lg">
+                                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+                                    </div>
+                                    <div class="w-16 h-16 rounded-lg bg-slate-700 border-b-4 border-slate-950 flex items-center justify-center text-slate-400 font-bold shadow-lg">
+                                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-slate-50 border-t border-slate-200 pt-16 pb-8 relative z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid md:grid-cols-4 gap-12 mb-12">
+                <div class="col-span-1 md:col-span-2">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-6 h-6 rounded bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-white text-xs font-bold">S</div>
+                        <span class="font-display font-bold text-lg text-slate-900">Snake.io</span>
+                    </div>
+                    <p class="text-slate-500 max-w-sm">
+                        Moderná verzia legendárnej hry, vytvorená s láskou k detailom a dizajnu.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-900 mb-4">Odkazy</h4>
+                    <ul class="space-y-2 text-slate-500">
+                        <li><a href="#" class="hover:text-emerald-500 transition-colors">Domov</a></li>
+                        <li><a href="#" class="hover:text-emerald-500 transition-colors">O Hre</a></li>
+                        <li><a href="#" class="hover:text-emerald-500 transition-colors">Rebríček</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-900 mb-4">Kontakt</h4>
+                    <ul class="space-y-2 text-slate-500">
+                        <li><a href="#" class="hover:text-emerald-500 transition-colors">Twitter</a></li>
+                        <li><a href="#" class="hover:text-emerald-500 transition-colors">Discord</a></li>
+                        <li><a href="#" class="hover:text-emerald-500 transition-colors">GitHub</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-slate-200 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+                <p class="text-slate-400 text-sm">© 2025 Snake.io. Všetky práva vyhradené.</p>
+                <div class="flex gap-6">
+                    <a href="#" class="text-slate-400 hover:text-slate-600 text-sm">Ochrana súkromia</a>
+                    <a href="#" class="text-slate-400 hover:text-slate-600 text-sm">Podmienky</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Navbar scroll effect
+        const navbar = document.getElementById('navbar');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 20) {
+                navbar.classList.add('bg-white/80', 'backdrop-blur-md', 'shadow-sm');
+            } else {
+                navbar.classList.remove('bg-white/80', 'backdrop-blur-md', 'shadow-sm');
+            }
+        });
+
+        // Reveal animations on scroll
+        const observerOptions = {
+            root: null,
+            rootMargin: '0px',
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.reveal').forEach(el => {
+            observer.observe(el);
+        });
+    </script>
+</body>
+</html>
