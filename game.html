@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="sk">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hrať Snake - Moderná Klasika</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Outfit:wght@400;600;800&display=swap"
+        rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            light: '#d1fae5',
+                            DEFAULT: '#10b981',
+                            dark: '#047857',
+                        }
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+        }
+
+        .bg-grid-pattern {
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        canvas {
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-800 antialiased overflow-hidden relative h-screen flex flex-col">
+
+    <!-- Background Elements -->
+    <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div
+            class="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-emerald-200/30 rounded-full blur-3xl animate-pulse-slow">
+        </div>
+        <div class="absolute bottom-[-10%] left-[-5%] w-[600px] h-[600px] bg-cyan-200/30 rounded-full blur-3xl animate-pulse-slow"
+            style="animation-delay: 1s;"></div>
+        <div class="absolute inset-0 bg-grid-pattern opacity-[0.4] z-[-1]"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="w-full z-50 p-4 md:p-6">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <a href="index.html" class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
+                <div
+                    class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-white font-bold shadow-lg">
+                    S</div>
+                <span class="font-display font-bold text-xl tracking-tight text-slate-900 hidden sm:inline">Snake<span
+                        class="text-emerald-500">.io</span></span>
+            </a>
+            <div class="flex gap-2 md:gap-4">
+                <div class="glass-card px-3 py-1.5 md:px-4 md:py-2 rounded-full flex items-center gap-2">
+                    <span class="text-slate-500 text-xs md:text-sm font-semibold uppercase tracking-wider">Level</span>
+                    <span id="levelDisplay" class="text-xl md:text-2xl font-display font-bold text-purple-600">1</span>
+                </div>
+                <div class="glass-card px-3 py-1.5 md:px-4 md:py-2 rounded-full flex items-center gap-2">
+                    <span class="text-slate-500 text-xs md:text-sm font-semibold uppercase tracking-wider">Skóre</span>
+                    <span id="score" class="text-xl md:text-2xl font-display font-bold text-emerald-600">0</span>
+                </div>
+                <div class="glass-card px-3 py-1.5 md:px-4 md:py-2 rounded-full flex items-center gap-2 hidden sm:flex">
+                    <span class="text-slate-500 text-xs md:text-sm font-semibold uppercase tracking-wider">Top</span>
+                    <span id="highScore" class="text-xl md:text-2xl font-display font-bold text-slate-700">0</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Game Container -->
+    <main class="flex-grow flex items-center justify-center p-4 relative z-10">
+        <div class="relative w-full max-w-[600px]">
+            <!-- Active Effects Indicator -->
+            <div id="activeEffects" class="absolute -top-12 left-0 right-0 flex justify-center gap-2 h-8">
+                <!-- Effects will be injected here via JS -->
+            </div>
+
+            <!-- Game Board -->
+            <div class="glass-card p-2 rounded-2xl shadow-2xl relative">
+                <canvas id="gameCanvas" width="600" height="600"
+                    class="bg-white/50 rounded-xl cursor-crosshair block w-full h-auto aspect-square"></canvas>
+
+                <!-- Start/Game Over Overlay -->
+                <div id="gameOverlay"
+                    class="absolute inset-0 rounded-xl bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center z-20 transition-opacity duration-300">
+                    <h2 id="overlayTitle" class="text-4xl md:text-5xl font-display font-bold text-slate-900 mb-2">
+                        Pripravený?</h2>
+                    <p id="overlaySubtitle" class="text-slate-600 mb-8 text-lg text-center px-4">Zbieraj power-upy a
+                        vyhýbaj sa prekážkam!</p>
+                    <button id="actionBtn"
+                        class="px-8 py-4 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold text-lg shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all hover:-translate-y-1">
+                        Spustiť Hru
+                    </button>
+                    <div class="mt-8 grid grid-cols-2 gap-4 text-sm text-slate-500">
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 rounded-full bg-yellow-400"></div> Zlaté Jablko (+50)
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 rounded-full bg-blue-500"></div> Spomalenie
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 rounded-full bg-purple-500"></div> Duch (Cez steny)
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 rounded-full bg-orange-500"></div> Skrátenie
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile Controls -->
+            <div class="mt-4 grid grid-cols-3 gap-2 md:hidden w-48 mx-auto">
+                <div></div>
+                <button id="btnUp"
+                    class="h-14 bg-white/80 rounded-xl shadow-sm flex items-center justify-center active:bg-emerald-100 touch-manipulation">
+                    <svg class="w-6 h-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7" />
+                    </svg>
+                </button>
+                <div></div>
+                <button id="btnLeft"
+                    class="h-14 bg-white/80 rounded-xl shadow-sm flex items-center justify-center active:bg-emerald-100 touch-manipulation">
+                    <svg class="w-6 h-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+                <button id="btnDown"
+                    class="h-14 bg-white/80 rounded-xl shadow-sm flex items-center justify-center active:bg-emerald-100 touch-manipulation">
+                    <svg class="w-6 h-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7-7-7" />
+                    </svg>
+                </button>
+                <button id="btnRight"
+                    class="h-14 bg-white/80 rounded-xl shadow-sm flex items-center justify-center active:bg-emerald-100 touch-manipulation">
+                    <svg class="w-6 h-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const highScoreElement = document.getElementById('highScore');
+        const levelElement = document.getElementById('levelDisplay');
+        const overlay = document.getElementById('gameOverlay');
+        const actionBtn = document.getElementById('actionBtn');
+        const overlayTitle = document.getElementById('overlayTitle');
+        const overlaySubtitle = document.getElementById('overlaySubtitle');
+        const activeEffectsContainer = document.getElementById('activeEffects');
+
+        // Game Constants
+        const GRID_SIZE = 20;
+        const TILE_COUNT = 30; // 600px / 20px
+        const BASE_SPEED = 100;
+
+        // Item Types
+        const ITEMS = {
+            FOOD: { color: '#f43f5e', score: 10, grow: 1, type: 'food' },
+            GOLD: { color: '#fbbf24', score: 50, grow: 3, type: 'gold', chance: 0.1 },
+            SLOW: { color: '#3b82f6', score: 5, grow: 0, type: 'slow', duration: 5000, chance: 0.05 },
+            GHOST: { color: '#a855f7', score: 5, grow: 0, type: 'ghost', duration: 5000, chance: 0.05 },
+            CUT: { color: '#f97316', score: 5, grow: -3, type: 'cut', chance: 0.05 }
+        };
+
+        // Levels Configuration
+        const LEVELS = [
+            { id: 1, threshold: 0, obstacles: [] },
+            { id: 2, threshold: 100, obstacles: generateBoxObstacles() },
+            { id: 3, threshold: 250, obstacles: generateCornerObstacles() },
+            { id: 4, threshold: 450, obstacles: generateParallelObstacles() },
+            { id: 5, threshold: 700, obstacles: generateMazeObstacles() }
+        ];
+
+        // Helper functions for level generation
+        function generateBoxObstacles() {
+            const obs = [];
+            const center = Math.floor(TILE_COUNT / 2);
+            const size = 6;
+            for (let x = center - size / 2; x < center + size / 2; x++) {
+                for (let y = center - size / 2; y < center + size / 2; y++) {
+                    if (x === center - size / 2 || x === center + size / 2 - 1 ||
+                        y === center - size / 2 || y === center + size / 2 - 1) {
+                        obs.push({ x, y });
+                    }
+                }
+            }
+            return obs;
+        }
+
+        function generateCornerObstacles() {
+            const obs = [];
+            const len = 8;
+            // Top Left
+            for (let i = 3; i < 3 + len; i++) { obs.push({ x: i, y: 3 }); obs.push({ x: 3, y: i }); }
+            // Top Right
+            for (let i = 3; i < 3 + len; i++) { obs.push({ x: TILE_COUNT - 4, y: i }); obs.push({ x: TILE_COUNT - 1 - i, y: 3 }); }
+            // Bottom Left
+            for (let i = 3; i < 3 + len; i++) { obs.push({ x: 3, y: TILE_COUNT - 1 - i }); obs.push({ x: i, y: TILE_COUNT - 4 }); }
+            // Bottom Right
+            for (let i = 3; i < 3 + len; i++) { obs.push({ x: TILE_COUNT - 4, y: TILE_COUNT - 1 - i }); obs.push({ x: TILE_COUNT - 1 - i, y: TILE_COUNT - 4 }); }
+            return obs;
+        }
+
+        function generateParallelObstacles() {
+            const obs = [];
+            for (let y = 5; y < TILE_COUNT - 5; y += 4) {
+                for (let x = 5; x < TILE_COUNT - 5; x++) {
+                    if (x % 3 !== 0) obs.push({ x, y });
+                }
+            }
+            return obs;
+        }
+
+        function generateMazeObstacles() {
+            const obs = [];
+            for (let i = 0; i < TILE_COUNT; i++) {
+                if (i % 2 === 0) continue;
+                for (let j = 0; j < TILE_COUNT; j++) {
+                    if (Math.random() > 0.8) obs.push({ x: i, y: j });
+                }
+            }
+            return obs;
+        }
+
+        // Game State
+        let score = 0;
+        let highScore = localStorage.getItem('snakeHighScore') || 0;
+        let snake = [];
+        let currentItem = null;
+        let activePowerups = []; // Items on board
+        let activeEffects = {}; // Active effects on snake
+        let currentLevelIndex = 0;
+        let obstacles = [];
+
+        let dx = 0;
+        let dy = 0;
+        let nextDx = 0;
+        let nextDy = 0;
+
+        let gameLoop;
+        let isGameRunning = false;
+        let lastTime = 0;
+        let accumulator = 0;
+
+        highScoreElement.textContent = highScore;
+
+        // Initialize Game
+        function initGame() {
+            snake = [
+                { x: 10, y: 10 },
+                { x: 9, y: 10 },
+                { x: 8, y: 10 }
+            ];
+            score = 0;
+            currentLevelIndex = 0;
+            updateLevel();
+
+            dx = 1;
+            dy = 0;
+            nextDx = 1;
+            nextDy = 0;
+
+            activeEffects = {};
+            activePowerups = [];
+
+            scoreElement.textContent = score;
+            spawnItem();
+
+            updateEffectsUI();
+            draw();
+        }
+
+        function updateLevel() {
+            // Check if we reached next level
+            if (currentLevelIndex < LEVELS.length - 1 && score >= LEVELS[currentLevelIndex + 1].threshold) {
+                currentLevelIndex++;
+                // Visual notification could go here
+            }
+
+            levelElement.textContent = LEVELS[currentLevelIndex].id;
+            obstacles = LEVELS[currentLevelIndex].obstacles;
+        }
+
+        function spawnItem() {
+            // Determine item type based on chance
+            let type = ITEMS.FOOD;
+            const rand = Math.random();
+
+            if (rand < ITEMS.GOLD.chance) type = ITEMS.GOLD;
+            else if (rand < ITEMS.GOLD.chance + ITEMS.SLOW.chance) type = ITEMS.SLOW;
+            else if (rand < ITEMS.GOLD.chance + ITEMS.SLOW.chance + ITEMS.GHOST.chance) type = ITEMS.GHOST;
+            else if (rand < ITEMS.GOLD.chance + ITEMS.SLOW.chance + ITEMS.GHOST.chance + ITEMS.CUT.chance) type = ITEMS.CUT;
+
+            let item = { x: 0, y: 0, type: type };
+
+            // Find valid position
+            while (true) {
+                item.x = Math.floor(Math.random() * TILE_COUNT);
+                item.y = Math.floor(Math.random() * TILE_COUNT);
+
+                if (isValidPosition(item.x, item.y)) break;
+            }
+
+            currentItem = item;
+        }
+
+        function isValidPosition(x, y) {
+            // Check snake
+            for (let s of snake) if (s.x === x && s.y === y) return false;
+            // Check obstacles
+            for (let o of obstacles) if (o.x === x && o.y === y) return false;
+            return true;
+        }
+
+        function startGame() {
+            if (isGameRunning) return;
+
+            initGame();
+            isGameRunning = true;
+            overlay.classList.add('opacity-0', 'pointer-events-none');
+
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoopFrame);
+        }
+
+        function gameLoopFrame(currentTime) {
+            if (!isGameRunning) return;
+
+            const deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
+            accumulator += deltaTime;
+
+            let currentSpeed = BASE_SPEED;
+            if (activeEffects.SLOW) currentSpeed *= 1.5; // Slower
+            // Speed up slightly as levels progress
+            currentSpeed = Math.max(50, currentSpeed - (currentLevelIndex * 5));
+
+            if (accumulator >= currentSpeed) {
+                update();
+                accumulator = 0;
+            }
+
+            draw();
+            requestAnimationFrame(gameLoopFrame);
+        }
+
+        function gameOver() {
+            isGameRunning = false;
+
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('snakeHighScore', highScore);
+                highScoreElement.textContent = highScore;
+                overlayTitle.textContent = "Nový Rekord!";
+            } else {
+                overlayTitle.textContent = "Koniec Hry";
+            }
+
+            overlaySubtitle.textContent = `Level ${LEVELS[currentLevelIndex].id} • Skóre: ${score}`;
+            actionBtn.textContent = "Hrať Znova";
+            overlay.classList.remove('opacity-0', 'pointer-events-none');
+        }
+
+        function activateEffect(type) {
+            if (type.duration) {
+                activeEffects[type.type.toUpperCase()] = Date.now() + type.duration;
+                setTimeout(updateEffectsUI, type.duration); // Refresh when done
+            }
+            updateEffectsUI();
+        }
+
+        function updateEffectsUI() {
+            activeEffectsContainer.innerHTML = '';
+            const now = Date.now();
+
+            for (const [effect, endTime] of Object.entries(activeEffects)) {
+                if (endTime > now) {
+                    const badge = document.createElement('div');
+                    badge.className = 'px-3 py-1 rounded-full text-xs font-bold text-white shadow-lg animate-pulse flex items-center gap-1';
+
+                    if (effect === 'SLOW') {
+                        badge.style.backgroundColor = ITEMS.SLOW.color;
+                        badge.textContent = 'SPOMALENIE';
+                    } else if (effect === 'GHOST') {
+                        badge.style.backgroundColor = ITEMS.GHOST.color;
+                        badge.textContent = 'GHOST MODE';
+                    }
+
+                    activeEffectsContainer.appendChild(badge);
+                } else {
+                    delete activeEffects[effect];
+                }
+            }
+        }
+
+        function update() {
+            // Update direction
+            dx = nextDx;
+            dy = nextDy;
+
+            // Calculate new head position
+            let head = { x: snake[0].x + dx, y: snake[0].y + dy };
+
+            // Ghost Mode Wrap-around
+            if (activeEffects.GHOST && activeEffects.GHOST > Date.now()) {
+                if (head.x < 0) head.x = TILE_COUNT - 1;
+                if (head.x >= TILE_COUNT) head.x = 0;
+                if (head.y < 0) head.y = TILE_COUNT - 1;
+                if (head.y >= TILE_COUNT) head.y = 0;
+            } else {
+                // Wall Collision
+                if (head.x < 0 || head.x >= TILE_COUNT || head.y < 0 || head.y >= TILE_COUNT) {
+                    gameOver();
+                    return;
+                }
+            }
+
+            // Obstacle Collision (Ghost mode ignores obstacles too)
+            if (!(activeEffects.GHOST && activeEffects.GHOST > Date.now())) {
+                for (let o of obstacles) {
+                    if (head.x === o.x && head.y === o.y) {
+                        gameOver();
+                        return;
+                    }
+                }
+            }
+
+            // Self Collision
+            for (let i = 0; i < snake.length; i++) {
+                if (head.x === snake[i].x && head.y === snake[i].y) {
+                    gameOver();
+                    return;
+                }
+            }
+
+            snake.unshift(head);
+
+            // Item Collision
+            if (currentItem && head.x === currentItem.x && head.y === currentItem.y) {
+                // Apply Item Effects
+                score += currentItem.type.score;
+                scoreElement.textContent = score;
+
+                // Grow logic
+                if (currentItem.type.grow > 0) {
+                    // Already grew by not popping, if grow > 1 need to add more dummy segments or just not pop for next frames?
+                    // Simplest: just don't pop this frame (grow 1). For grow 3, we can push tail copies.
+                    for (let i = 0; i < currentItem.type.grow - 1; i++) {
+                        snake.push({ ...snake[snake.length - 1] });
+                    }
+                } else if (currentItem.type.grow < 0) {
+                    // Shrink
+                    const shrinkAmount = Math.abs(currentItem.type.grow);
+                    for (let i = 0; i < shrinkAmount; i++) {
+                        if (snake.length > 3) snake.pop();
+                    }
+                    snake.pop(); // Pop the normal move segment too effectively
+                } else {
+                    snake.pop(); // No grow, so pop tail
+                }
+
+                // Special Effects
+                if (currentItem.type.type === 'slow' || currentItem.type.type === 'ghost') {
+                    activateEffect(currentItem.type);
+                }
+
+                updateLevel();
+                spawnItem();
+            } else {
+                snake.pop();
+            }
+        }
+
+        function draw() {
+            // Clear Canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Grid (Subtle)
+            ctx.strokeStyle = 'rgba(0,0,0,0.03)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < TILE_COUNT; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * GRID_SIZE, 0);
+                ctx.lineTo(i * GRID_SIZE, canvas.height);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, i * GRID_SIZE);
+                ctx.lineTo(canvas.width, i * GRID_SIZE);
+                ctx.stroke();
+            }
+
+            // Draw Obstacles
+            ctx.fillStyle = '#475569'; // Slate-600
+            for (let o of obstacles) {
+                ctx.beginPath();
+                ctx.roundRect(o.x * GRID_SIZE, o.y * GRID_SIZE, GRID_SIZE, GRID_SIZE, 4);
+                ctx.fill();
+            }
+
+            // Draw Item
+            if (currentItem) {
+                ctx.fillStyle = currentItem.type.color;
+                ctx.shadowColor = currentItem.type.color;
+                ctx.shadowBlur = 15;
+
+                const cx = currentItem.x * GRID_SIZE + GRID_SIZE / 2;
+                const cy = currentItem.y * GRID_SIZE + GRID_SIZE / 2;
+
+                ctx.beginPath();
+                if (currentItem.type.type === 'gold' || currentItem.type.type === 'food') {
+                    ctx.arc(cx, cy, GRID_SIZE / 2 - 2, 0, Math.PI * 2);
+                } else {
+                    // Square/Diamond for powerups
+                    ctx.rect(cx - 6, cy - 6, 12, 12);
+                }
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+
+            // Draw Snake
+            snake.forEach((segment, index) => {
+                // Ghost mode visual
+                if (activeEffects.GHOST && activeEffects.GHOST > Date.now()) {
+                    ctx.globalAlpha = 0.5;
+                    ctx.fillStyle = '#a855f7'; // Purple
+                } else {
+                    ctx.globalAlpha = 1;
+                    if (index === 0) ctx.fillStyle = '#10b981';
+                    else ctx.fillStyle = '#34d399';
+                }
+
+                const x = segment.x * GRID_SIZE;
+                const y = segment.y * GRID_SIZE;
+                const size = GRID_SIZE - 2;
+                const radius = index === 0 ? 6 : 4;
+
+                ctx.beginPath();
+                ctx.roundRect(x + 1, y + 1, size, size, radius);
+                ctx.fill();
+
+                // Eyes
+                if (index === 0) {
+                    ctx.globalAlpha = 1;
+                    ctx.fillStyle = 'white';
+                    let eyeX1, eyeY1, eyeX2, eyeY2;
+                    if (dx === 1) { eyeX1 = x + size - 4; eyeY1 = y + 4; eyeX2 = x + size - 4; eyeY2 = y + size - 8; }
+                    else if (dx === -1) { eyeX1 = x + 4; eyeY1 = y + 4; eyeX2 = x + 4; eyeY2 = y + size - 8; }
+                    else if (dy === -1) { eyeX1 = x + 4; eyeY1 = y + 4; eyeX2 = x + size - 8; eyeY2 = y + 4; }
+                    else { eyeX1 = x + 4; eyeY1 = y + size - 4; eyeX2 = x + size - 8; eyeY2 = y + size - 4; }
+                    ctx.beginPath(); ctx.arc(eyeX1, eyeY1, 2, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(eyeX2, eyeY2, 2, 0, Math.PI * 2); ctx.fill();
+                }
+            });
+            ctx.globalAlpha = 1;
+        }
+
+        // Input Handling
+        document.addEventListener('keydown', (e) => {
+            if (!isGameRunning && (e.key === 'Enter' || e.key === ' ')) {
+                startGame();
+                return;
+            }
+
+            switch (e.key) {
+                case 'ArrowUp': if (dy !== 1) { nextDx = 0; nextDy = -1; } break;
+                case 'ArrowDown': if (dy !== -1) { nextDx = 0; nextDy = 1; } break;
+                case 'ArrowLeft': if (dx !== 1) { nextDx = -1; nextDy = 0; } break;
+                case 'ArrowRight': if (dx !== -1) { nextDx = 1; nextDy = 0; } break;
+            }
+        });
+
+        // Mobile Controls
+        document.getElementById('btnUp').addEventListener('click', () => { if (dy !== 1) { nextDx = 0; nextDy = -1; } });
+        document.getElementById('btnDown').addEventListener('click', () => { if (dy !== -1) { nextDx = 0; nextDy = 1; } });
+        document.getElementById('btnLeft').addEventListener('click', () => { if (dx !== 1) { nextDx = -1; nextDy = 0; } });
+        document.getElementById('btnRight').addEventListener('click', () => { if (dx !== -1) { nextDx = 1; nextDy = 0; } });
+
+        actionBtn.addEventListener('click', startGame);
+
+        initGame();
+
+    </script>
+</body>
+
+</html>
